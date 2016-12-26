@@ -2,7 +2,6 @@ from music21 import *
 import numpy as np
 import glob
 from collections import OrderedDict
-import pandas as pd
 
 
 def parseMidiFile(fn, keep_rythm=False):
@@ -42,7 +41,7 @@ def parseMidiFile(fn, keep_rythm=False):
     return seq.items()
 
 
-def writeToMidiFile(fn, seq):
+def writeMidiFile(fn, seq):
     recons = stream.Part()
     recons.insert(0, instrument.ElectricGuitar())
     i = 0
@@ -59,22 +58,23 @@ def writeToMidiFile(fn, seq):
 def parseSeqFile(fn):
     seq = []
     with open(fn, 'r') as f:
-        for row in f:
-            ns = row.split(',')[1:-1]
-            offset = int(float(row.split(',')[0]))
-            nns = [int(float(n)) for n in ns if len(n)>0]
-            seq.append((offset, nns))
+        for line in f:
+            offset, notes = line.split(':')
+            notes = notes.replace('\n', '').split(',')
+            notes = [int(n) for n in notes]
+            seq.append((int(offset), notes))
     return seq
 
 
-def writeSeqFile(fn, seq):
-    df = pd.DataFrame(dict(seq).values())
-    df.to_csv(fn, header=False)
-
+def writeSeqFile(file, seq):
+    for offset, notes in seq:
+        line = str(offset)+':'+str(list(notes))[1:-1]+'\n'
+        file.write(line)
 
 
 def main():
 
+    '''
     print 'Converting midi files to seq files....'
 
     midi_fns = glob.glob('midi/*')
@@ -90,7 +90,9 @@ def main():
 
             seq_fn = 'seqs/' + midi_fn[5:-4] + '.seq'
             
-            writeSeqFile(seq_fn, seq)
+            file = open(seq_fn, 'w')
+            writeSeqFile(file, seq)
+            file.close()
 
             seqs.append(seq)
 
@@ -99,21 +101,32 @@ def main():
             print 'Error reading '+midi_fn+' !'
 
     print 'Preprocessed '+str(i)+' files with '+str(error_count)+' errors!'
+    '''
 
-    print 'Building batches...'
+    #temporary
+    seqs = []
+    seq_fns = glob.glob('seqs/*')
+    for seq_fn in seq_fns:
+        seqs.append(parseSeqFile(seq_fn))
+    #end of temporary
+
     overlap = 25
     seq_length = 50
 
+
+    batch_file = open('batches.seqs', 'w')
+
     batches = []
-    for seq in seqs:
+    for seq, seq_fn in zip(seqs, seq_fns):
         for i in range(0, len(seq) - seq_length + 1, overlap):
-            batches.append(seq[i:i + seq_length])
-    
+            batch = seq[i:i + seq_length]
+            batch_file.write(str(len(batch))+','+seq_fn+'\n')
+            batches.append(batch)
+            writeSeqFile(batch_file, batch)
+
     print 'Created '+str(len(batches))+' batches.'
 
-    print 'Saving batches to hdf5...'
-
-
+    batch_file.close()
     print 'Done !'
 
 

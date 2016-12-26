@@ -7,7 +7,6 @@ local display = require 'display'
 require 'Sampler.lua'
 require 'KLDCriterion'
 require 'GaussianCriterion'
-local mnist_loader = require 'mnist_loader'
 local storn = require 'storn'
 
 
@@ -19,7 +18,8 @@ local opt = {
 	dropout = false,
 	n_layers = 10,
 	
-	loader = 'mnist_loader',
+	loader = 'mnistLoader',
+	filename = '',
 	batch_size = 6,
 	seq_length = 7,
 	sample_batch = false,
@@ -31,11 +31,10 @@ local opt = {
 
 
 --loading and preparing batches
-local Loader = require(opt.loader)
-local loader = Loader.build(opt.batch_size, opt.sample_batch)
+require(opt.loader)
+local loader =  _G[opt.loader](opt)
 
 --initializing model
-
 --initializing encoder and decoder models
 local encoder = storn.build_encoder(opt.input_size, opt.hidden_size,
 	opt.latent_size, opt.n_layers, opt.dropout)
@@ -59,6 +58,9 @@ local params, grad_params = model:getParameters()
 --initializing criterions
 local KLDCriterion = nn.KLDCriterion()
 local criterion = nn.GaussianCriterion()
+
+
+
 
 --training
 local input = torch.Tensor(opt.seq_length, opt.batch_size, opt.input_size)
