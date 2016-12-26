@@ -20,4 +20,8 @@ function music_loader:next_batch()
 end
 
 
+function music_loader:NumberOfBatches()
+	return self.n_batches
+end
+
 return music_loader
