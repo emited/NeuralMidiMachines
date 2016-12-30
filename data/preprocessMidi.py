@@ -4,7 +4,7 @@ import glob
 from collections import OrderedDict
 
 
-def parseMidiFile(fn, keep_rythm=False):
+def parseMidiFile(fn, keep_rythm=False, transpose_to=None):
 
     '''Loads a midi file, using music21,
     flattens out the different tracks 
@@ -16,10 +16,17 @@ def parseMidiFile(fn, keep_rythm=False):
     #load and convert to music21 format
     midi_data = converter.parse(fn)
     
+    #if we do not use rythm, we set spacing between each
+    #note / chord to 1.
     if not keep_rythm:
         unique_offsets = np.unique([n.offset for n in midi_data.flat.notes])
         offset2discr = {offset:i for i, offset in enumerate(unique_offsets)}
-        
+
+    if transpose_to:
+        k = midi_data.analyze('key')
+        i = interval.Interval(k.tonic, pitch.Pitch(transpose_to))
+        midi_data = midi_data.transpose(i)
+
     seq = OrderedDict()
     for n in midi_data.flat.notes:
         
@@ -33,7 +40,7 @@ def parseMidiFile(fn, keep_rythm=False):
         if isinstance(n, note.Note):
             seq[offset].add(n.pitch.midi)
         
-        #if n is a chord, transform to seq
+        #if n is a chord, get each note of n
         elif isinstance(n, chord.Chord):
             for chord_note in n:
                 seq[offset].add(chord_note.pitch.midi)
@@ -55,6 +62,22 @@ def writeMidiFile(fn, seq):
     recons.write('midi', fn)
 
 
+def writeMidiFileFromTensor(tensor_fn, out_fn):
+    
+    tensor = torchfile.load(tensor_fn)
+    recons = stream.Part()
+    recons.insert(0, instrument.ElectricGuitar())
+
+    for offset, notes in enumerate(tensor[0]):
+        
+        for pitch, volume in enumerate(notes):
+            n = note.Note(pitch)
+            n.volume = volume
+            recons.insert(offset, n)
+
+    recons.write('midi', out_fn)
+
+
 def parseSeqFile(fn):
     seq = []
     with open(fn, 'r') as f:
@@ -74,11 +97,12 @@ def writeSeqFile(file, seq):
 
 def main():
 
-    '''
+    midi_fns = glob.glob('midi/*')
+    path = 'seqs_transposed'
+    transpose_to = 'C'
+
     print 'Converting midi files to seq files....'
 
-    midi_fns = glob.glob('midi/*')
-    seqs = []
     error_count = 0
     for i, midi_fn in enumerate(midi_fns):
         
@@ -86,48 +110,42 @@ def main():
             print 'Preprocessing file '+str(i)+' of '+str(len(midi_fns))\
                 +' '+midi_fn+'...'
 
-            seq = parseMidiFile(midi_fn, keep_rythm=False)
+            seq = parseMidiFile(midi_fn, keep_rythm=False, transpose_to=transpose_to)
 
-            seq_fn = 'seqs/' + midi_fn[5:-4] + '.seq'
+            seq_fn = path + '/' + midi_fn[5:-4] + '.seq'
             
             file = open(seq_fn, 'w')
             writeSeqFile(file, seq)
             file.close()
-
-            seqs.append(seq)
 
         except:
             error_count += 1
             print 'Error reading '+midi_fn+' !'
 
     print 'Preprocessed '+str(i)+' files with '+str(error_count)+' errors!'
-    '''
-
-    #temporary
-    seqs = []
-    seq_fns = glob.glob('seqs/*')
-    for seq_fn in seq_fns:
-        seqs.append(parseSeqFile(seq_fn))
-    #end of temporary
-
-    overlap = 25
-    seq_length = 50
 
 
-    batch_file = open('batches.seqs', 'w')
-
-    batches = []
-    for seq, seq_fn in zip(seqs, seq_fns):
-        for i in range(0, len(seq) - seq_length + 1, overlap):
-            batch = seq[i:i + seq_length]
-            batch_file.write(str(len(batch))+','+seq_fn+'\n')
-            batches.append(batch)
-            writeSeqFile(batch_file, batch)
-
-    print 'Created '+str(len(batches))+' batches.'
-
-    batch_file.close()
-    print 'Done !'
+    #seqs = []
+    #seq_fns = glob.glob('seqs/*')
+    #for seq_fn in seq_fns:
+    #    seqs.append(parseSeqFile(seq_fn))
+    #overlap = 25
+    #seq_length = 50
+    #
+    #batch_file = open('batches.seqs', 'w')
+    #
+    #batches = []
+    #for seq, seq_fn in zip(seqs, seq_fns):
+    #    for i in range(0, len(seq) - seq_length + 1, overlap):
+    #        batch = seq[i:i + seq_length]
+    #        batch_file.write(str(len(batch))+','+seq_fn+'\n')
+    #        batches.append(batch)
+    #        writeSeqFile(batch_file, batch)
+    #
+    #print 'Created '+str(len(batches))+' batches.'
+    #
+    #batch_file.close()
+    #print 'Done !'
 
 
 

@@ -3,14 +3,14 @@ require 'paths'
 require 'Loader'
 
 
-local seqLoader = torch.class('seqLoader', 'Loader')
+local MusicLoader = torch.class('MusicLoader', 'Loader')
 
-function seqLoader:setData(opt)
+function MusicLoader:setData(opt)
 
-	self.seq_length = opt.seq_length or 50
-	self.overlap = opt.overlap or 25
+	local seq_length = opt.seq_length or 50
+	local overlap = opt.overlap or 25
 
-	local fns = getFilenames('data/seqs')
+	local fns = getFilenames(opt.path)
 
 	local seqs = {}
 	for i, fn in ipairs(fns) do
@@ -20,18 +20,28 @@ function seqLoader:setData(opt)
 		 end
 	end
 
-	local data = torch.ByteTensor(#seqs, seq_length, 128)
+	local data = torch.DoubleTensor(#seqs, seq_length, 128)
 	for i, seq in ipairs(seqs) do
 		data[i] = seq
 	end
 
+	self.batch_first = true
+	self.seq_length = seq_length
+	self.overlap = overlap
+
+	print('loaded and created '..#seqs..' seqs sucessfully.')
 	return data
+
+end
+
+function MusicLoader:preprocess(data)
+	return data:view(data:size(1), -1)
 end
 
 
 function getFilenames(path)
-	curr_path = paths.cwd()..'/'..path
-	fns = {}
+	local curr_path = paths.cwd()..'/'..path
+	local fns = {}
 	for fn in paths.files(curr_path) do
 	    if fn:find('seq' .. '$') then
 	    	fns[#fns+1] = paths.concat(curr_path, fn)
@@ -60,7 +70,7 @@ function parseSeqFile(fn)
 	end
 
 	--convert to tensor
-	tseq = {}
+	local tseq = {}
 	tseq.offsets = torch.Tensor(seq.offsets)
 	tseq.notes = torch.ByteTensor(#seq.notes, 128):zero()
 	for t, notes in ipairs(seq.notes) do
