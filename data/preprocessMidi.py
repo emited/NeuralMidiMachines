@@ -2,6 +2,7 @@ from music21 import *
 import numpy as np
 import glob
 from collections import OrderedDict
+import torchfile
 
 
 def parseMidiFile(fn, keep_rythm=False, transpose_to=None):
