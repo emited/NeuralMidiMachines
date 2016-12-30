@@ -6,7 +6,7 @@
 
  * **LSTM** (Long Short Term Memory), paper [here](http://web.eecs.utk.edu/~itamar/courses/ECE-692/Bobby_paper1.pdf),
 
- * **VAE** (Variational Autoencoders) based on yOast's [VAE-Torch](https://github.com/y0ast/VAE-Torch), paper [here](https://arxiv.org/abs/1411.7610),
+ * **VAE** (Variational Autoencoders) based on y0ast's [VAE-Torch](https://github.com/y0ast/VAE-Torch), paper [here](https://arxiv.org/abs/1411.7610),
 
  * **STORN** (Stochastic Recurrent Networks), paper [here](https://arxiv.org/abs/1411.7610),
 
