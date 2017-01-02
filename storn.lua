@@ -8,10 +8,11 @@ function storn.build_encoder(input_size, hidden_size, latent_size, n_layers, dro
 
 	local n_layers = n_layers or 1
 	local batch_norm = batch_norm or false
+	local stabilise = stabilise or false
 
 	local encoder = nn.Sequential()
 
-	local lstms = nn.Sequential()
+	local rm = nn.Sequential()
 	
 	for layer=1, n_layers do 
 
@@ -23,20 +24,20 @@ function storn.build_encoder(input_size, hidden_size, latent_size, n_layers, dro
 		else
 		 lstm = nn.FastLSTM(hidden_size, hidden_size)
 		end
-		lstms:add(lstm)
+		rm:add(lstm)
 
 		if stabilise then
-			lstms:add(nn.NormStabilizer())
+			rm:add(nn.NormStabilizer())
 		end
 
 		--adding dropout layer
 		if dropout then
-			lstms:add(nn.Dropout(0.5))
+			rm:add(nn.Dropout(0.5))
 		end
 
 	end
 
-	encoder:add(nn.Sequencer(lstms))
+	encoder:add(nn.Sequencer(rm))
 
 	--adding mean and logvar output
 	local mean = nn.Linear(hidden_size, latent_size)
@@ -56,38 +57,38 @@ end
 function storn.build_decoder(latent_size, hidden_size, output_size, n_layers, dropout, batch_norm, stabilise)
 
 	local n_layers = n_layers or 1
+	local batch_norm = batch_norm or false
+	local stabilise = stabilise or false
 
 	local decoder = nn.Sequential()
 
-	local lstms = nn.Sequential()
+	local rm = nn.Sequential()
 
 	for layer=1, n_layers do
 
 		--adding lstm layer
-		local lstm
 		nn.FastLSTM.bn = batch_norm
 		if layer == 1 then
-		 lstm = nn.FastLSTM(latent_size, hidden_size)
+		 rm:add(nn.FastLSTM(latent_size, hidden_size))
 		else
-		 lstm = nn.FastLSTM(hidden_size, hidden_size)
+		 rm:add(nn.FastLSTM(hidden_size, hidden_size))
 		end
-		lstms:add(lstm)
 		
 		--adding stabiling layer
 		if stabilise then
-			lstms:add(nn.NormStabilizer())
+			rm:add(nn.NormStabilizer())
 		end
 
 		--adding dropout layer
 		if dropout then
-			lstms:add(nn.Dropout(0.5))
+			rm:add(nn.Dropout(0.5))
 		end
 	end
 
-	lstms:add(nn.Linear(hidden_size, output_size))
-	lstms:add(nn.Sigmoid(true))
+	rm:add(nn.Linear(hidden_size, output_size))
+	rm:add(nn.Sigmoid(true))
 
-	decoder:add(nn.Sequencer(lstms))
+	decoder:add(nn.Sequencer(rm))
 
 
 	return decoder

@@ -52,6 +52,7 @@ def parseMidiFile(fn, keep_rythm=False, transpose_to=None):
 def writeMidiFile(fn, seq):
     recons = stream.Part()
     recons.insert(0, instrument.ElectricGuitar())
+
     i = 0
     for offset, pitches in seq:
         i += 1
@@ -63,19 +64,32 @@ def writeMidiFile(fn, seq):
     recons.write('midi', fn)
 
 
-def writeMidiFileFromTensor(tensor_fn, out_fn):
+def writeMidiFileFromTensor(tensor_fn, out_fn, method='sample'):
     
-    tensor = torchfile.load(tensor_fn)
+    tensor = np.squeeze(torchfile.load(tensor_fn))
+    
     recons = stream.Part()
     recons.insert(0, instrument.ElectricGuitar())
 
-    for offset, notes in enumerate(tensor[0]):
+    for offset, notes in enumerate(tensor):
         
-        for pitch, volume in enumerate(notes):
-            n = note.Note(pitch)
-            n.volume = volume
+        if method == 'all':
+            for pitch, volume in enumerate(notes):
+                if volume > 0:
+                    n = note.Note(pitch)
+                    n.volume = volume * 100
+                    recons.insert(offset, n)
+
+        elif method == 'sample':
+             s = np.random.choice(len(notes), p=notes/notes.sum())
+             n = note.Note(s)
+             recons.insert(offset, n)
+
+        elif method == 'argmax':
+            n = note.Note(notes.argmax())
             recons.insert(offset, n)
 
+    print(recons.show('text'))
     recons.write('midi', out_fn)
 
 
@@ -98,6 +112,7 @@ def writeSeqFile(file, seq):
 
 def main():
 
+    '''
     midi_fns = glob.glob('midi/*')
     path = 'seqs_transposed'
     transpose_to = 'C'
@@ -124,7 +139,11 @@ def main():
             print 'Error reading '+midi_fn+' !'
 
     print 'Preprocessed '+str(i)+' files with '+str(error_count)+' errors!'
-
+    '''
+    
+    tensor_fn = '../samples/sample_590.t7'
+    out_fn = 'out.mid'
+    writeMidiFileFromTensor(tensor_fn, out_fn, method='argmax')
 
     #seqs = []
     #seq_fns = glob.glob('seqs/*')
