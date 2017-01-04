@@ -3,7 +3,7 @@ import numpy as np
 import glob
 from collections import OrderedDict
 import torchfile
-
+import cPickle as pkl
 
 def parseMidiFile(fn, keep_rythm=False, transpose_to=None):
 
@@ -28,25 +28,36 @@ def parseMidiFile(fn, keep_rythm=False, transpose_to=None):
         i = interval.Interval(k.tonic, pitch.Pitch(transpose_to))
         midi_data = midi_data.transpose(i)
 
-    seq = OrderedDict()
-    for n in midi_data.flat.notes:
-        
-        if keep_rythm:
-            offset = n.offset
+    if not keep_rythm:
+        seq = OrderedDict()
+        for n in midi_data.flat.notes:
             
-        else:
             offset = offset2discr[n.offset]
 
-        seq.setdefault(offset, set())
-        if isinstance(n, note.Note):
-            seq[offset].add(n.pitch.midi)
-        
-        #if n is a chord, get each note of n
-        elif isinstance(n, chord.Chord):
-            for chord_note in n:
-                seq[offset].add(chord_note.pitch.midi)
+            seq.setdefault(offset, set())
+            if isinstance(n, note.Note):
+                seq[offset].add(n.pitch.midi)
+            
+            #if n is a chord, get each note of n
+            elif isinstance(n, chord.Chord):
+                for chord_note in n:
+                    seq[offset].add(chord_note.pitch.midi)
 
-    return seq.items()
+        return seq.items()
+    
+    else:
+        seq = []
+        for n in midi_data.flat.notes:
+            if isinstance(n, note.Note):
+                seq.append((n.offset, {n.pitch.midi}))
+            elif isinstance(n, chord.Chord):
+                for chord_note in n:
+                    seq.append((chord_note.offset+n.offset, {chord_note.pitch.midi}))
+
+
+        return seq
+
+
 
 
 def writeMidiFile(fn, seq):
@@ -93,14 +104,16 @@ def writeMidiFileFromTensor(tensor_fn, out_fn, method='sample'):
     recons.write('midi', out_fn)
 
 
-def parseSeqFile(fn):
+def parseSeqFile(file):
     seq = []
-    with open(fn, 'r') as f:
-        for line in f:
-            offset, notes = line.split(':')
-            notes = notes.replace('\n', '').split(',')
-            notes = [int(n) for n in notes]
-            seq.append((int(offset), notes))
+    for line in file:
+        offset, notes = line.split(':')
+        notes = notes.replace('\n', '').split(',')
+        notes = [int(n) for n in notes]
+        try:
+            seq.append((float(offset), notes))
+        except:
+            print(offset)
     return seq
 
 
@@ -112,21 +125,21 @@ def writeSeqFile(file, seq):
 
 def main():
 
-    '''
+    
     midi_fns = glob.glob('midi/*')
-    path = 'seqs_transposed'
+    path = 'seqs_rythm/'
     transpose_to = 'C'
 
     print 'Converting midi files to seq files....'
 
     error_count = 0
-    for i, midi_fn in enumerate(midi_fns):
+    for i, midi_fn in enumerate(midi_fns[456:]):
         
         try:
-            print 'Preprocessing file '+str(i)+' of '+str(len(midi_fns))\
+            print 'Preprocessing file '+str(i+1)+' of '+str(len(midi_fns))\
                 +' '+midi_fn+'...'
 
-            seq = parseMidiFile(midi_fn, keep_rythm=False, transpose_to=transpose_to)
+            seq = parseMidiFile(midi_fn, keep_rythm=True, transpose_to=transpose_to)
 
             seq_fn = path + '/' + midi_fn[5:-4] + '.seq'
             
@@ -138,17 +151,20 @@ def main():
             error_count += 1
             print 'Error reading '+midi_fn+' !'
 
-    print 'Preprocessed '+str(i)+' files with '+str(error_count)+' errors!'
-    '''
+    print 'Preprocessed '+str(i+1)+' files with '+str(error_count)+' errors!'
     
-    tensor_fn = '../samples/sample_590.t7'
-    out_fn = 'out.mid'
-    writeMidiFileFromTensor(tensor_fn, out_fn, method='argmax')
+    
+    #tensor_fn = '../samples/sample_590.t7'
+    #out_fn = 'out.mid'
+    #writeMidiFileFromTensor(tensor_fn, out_fn, method='argmax')
 
     #seqs = []
-    #seq_fns = glob.glob('seqs/*')
+    #seq_fns = glob.glob('seqs_transposed/*')
     #for seq_fn in seq_fns:
     #    seqs.append(parseSeqFile(seq_fn))
+    #print('saving seqs...')
+    #pkl.dump(seqs, open('all_seqs_transposed.pkl', 'w'))
+    #
     #overlap = 25
     #seq_length = 50
     #

@@ -15,7 +15,7 @@ local opt = {
 	batch_norm = true,
 	
 	loader = 'MusicLoader',
-	path = 'data/seqs',
+	path = 'data/seqs_transposed',
 	batch_size = 128,
 	seq_length = 25,
 	overlap = 25,
@@ -23,8 +23,8 @@ local opt = {
 
 	max_epochs = 100,
 	optim_alg = 'adam',
-	optim_opt = {learningRate=1e-2, learningRateDecay=1e-1},
-	seed = 126,
+	optim_opt = {learningRate=1e-2, learningRateDecay=1e-3},
+	seed = 131,
 }
 
 torch.manualSeed(opt.seed)

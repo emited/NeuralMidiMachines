@@ -14,16 +14,16 @@ local opt = {
 	latent_size = 40,
 	hidden_size = 400,
 	n_layers = 2,
-	dropout = true,
+	dropout = false,
 	batch_norm = true,
-	stabilise = true,
+	stabilise = false,
 
 	
 	loader = 'MusicLoader',
-	path = 'data/seqs',
+	path = 'data/seqs_transposed',
 	batch_size = 100,
 	seq_length = 25,
-	overlap = 25,
+	overlap = 6,
 	sample_batch = true,
 
 	max_epochs = 100,

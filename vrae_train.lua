@@ -19,7 +19,7 @@ local opt = {
 	stabilise = true,
 	
 	loader = 'MusicLoader',
-	path = 'data/seqs',
+	path = 'data/seqs_transposed',
 	batch_size = 100,
 	seq_length = 25,
 	overlap = 25,

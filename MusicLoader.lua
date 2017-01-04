@@ -30,12 +30,15 @@ function MusicLoader:setData(opt)
 	self.overlap = overlap
 
 	print('loaded and created '..#seqs..' seqs sucessfully.')
-	return data
+	return self:preprocess(data)
 
 end
 
 function MusicLoader:preprocess(data)
-	return data:view(data:size(1), -1)
+	--reduces the note space, based on histogram
+	-- of notes in transposed dataset, only
+	-- for transposed tracks (C)
+	return data:sub(1,-1, 1,-1, 24, -34)
 end
 
 
