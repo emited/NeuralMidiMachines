@@ -8,7 +8,7 @@
 
  * **VAE** (Variational Autoencoders) based on y0ast's [VAE-Torch](https://github.com/y0ast/VAE-Torch), paper [here](https://arxiv.org/abs/1411.7610),
  
- * **VRAE** (Variational Recurrent Autoencoders), paper [here](https://arxiv.org/abs/1412.6581),
+ * **VRAE** (Variational Recurrent Autoencoders), LSTM and GRU version paper [here](https://arxiv.org/abs/1412.6581),
 
  * **STORN** (Stochastic Recurrent Networks), paper [here](https://arxiv.org/abs/1411.7610),
 
