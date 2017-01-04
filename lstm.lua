@@ -9,6 +9,7 @@ function lstm.build(input_size, hidden_size, output_size, n_layers, dropout, bat
 	local n_layers = n_layers or 1
 	local batch_norm = batch_norm or false
 	local stabilise = stabilise or false
+	local dropout = dropout or false
 
 	local modules = nn.Sequential()
 

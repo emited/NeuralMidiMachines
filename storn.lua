@@ -9,6 +9,7 @@ function storn.build_encoder(input_size, hidden_size, latent_size, n_layers, dro
 	local n_layers = n_layers or 1
 	local batch_norm = batch_norm or false
 	local stabilise = stabilise or false
+	local dropout = dropout or false
 
 	local encoder = nn.Sequential()
 
@@ -20,11 +21,10 @@ function storn.build_encoder(input_size, hidden_size, latent_size, n_layers, dro
 		nn.FastLSTM.bn = batch_norm
 		local lstm
 		if layer == 1 then
-		 lstm = nn.FastLSTM(input_size, hidden_size)
+		 rm:add(nn.FastLSTM(input_size, hidden_size))
 		else
-		 lstm = nn.FastLSTM(hidden_size, hidden_size)
+		 rm:add(nn.FastLSTM(hidden_size, hidden_size))
 		end
-		rm:add(lstm)
 
 		if stabilise then
 			rm:add(nn.NormStabilizer())
@@ -59,6 +59,7 @@ function storn.build_decoder(latent_size, hidden_size, output_size, n_layers, dr
 	local n_layers = n_layers or 1
 	local batch_norm = batch_norm or false
 	local stabilise = stabilise or false
+	local dropout = dropout or false
 
 	local decoder = nn.Sequential()
 

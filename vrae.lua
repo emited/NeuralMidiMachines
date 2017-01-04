@@ -19,9 +19,6 @@ function vrae.build_encoder(input_size, hidden_size, latent_size, n_layers, drop
 		nn.FastLSTM.bn = batch_norm
 		if layer == 1 then
 			rm:add(nn.FastLSTM(input_size, hidden_size))
-		elseif layer == n_layers then
-			encoder.last_lstm = nn.FastLSTM(hidden_size, hidden_size)
-			rm:add(encoder.last_lstm)
 		else
 		 	rm:add(nn.FastLSTM(hidden_size, hidden_size))
 		end
@@ -93,6 +90,7 @@ function vrae.build_decoder(input_size, hidden_size, output_size, n_layers, drop
 	function decoder.copy_init_grad_cell(init_grad_cell)
 		init_grad_cell = 
 			nn.rnn.recursiveCopy(init_grad_cell, decoder.first_lstm.userGradPrevCell)
+		return init_grad_cell
 	end
 
 
@@ -121,26 +119,3 @@ end
 
 
 return vrae
-
---[[
-		decoder:evaluate()
-		decoder.set_init_cell(init_cell_state)
-
-		local outputs = {}
-		local inputSize = decoder.first_lstm.inputSize
-		local outputs = {[0] = }
-		local inputs = torch.Tensor():resize(1, 1, inputSize):zero()
-		for t=1, rho do
-			local output = decoder:forward(inputs)
-
-			inputs
-
-			inputs = torch.cat(outputs, 1)
-			outputs[t] = output
-			--outputs:resize(t+1, 1, inputSize):select(1,t):copy(output[t])
-		end
-		
-		decoder:training()
-		
-		return torch.cat(outputs, 1)
-]]

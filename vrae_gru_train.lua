@@ -1,146 +1,137 @@
 
 require 'nn'
-require 'rnn'
+require 'nngraph'
+require 'optim'
+local display = require 'display'
 
-local vrae = {}
+require 'Sampler.lua'
+require 'KLDCriterion'
+require 'GaussianCriterion'
+local vrae = require 'vrae_gru'
 
-function vrae.build_encoder(input_size, hidden_size, latent_size, n_layers, dropout, batch_norm, stabilise)
+
+local opt = {
+	latent_size = 40,
+	hidden_size = 400,
+	n_layers = 1,
+	dropout = false,
 	
-	local n_layers = n_layers or 1
-	local batch_norm = batch_norm or false
-	local stabilise = stabilise or false
+	loader = 'MusicLoader',
+	path = 'data/seqs_transposed',
+	batch_size = 100,
+	seq_length = 25,
+	overlap = 25,
+	sample_batch = true,
 
-	local encoder = nn.Sequential()
+	max_epochs = 11,
+	optim_alg = 'adam',
+	optim_opt = {learningRate=1e-2},--, learningRateDecay=1e-2},
+	seed = 123,
+}
 
-	local rm = nn.Sequential()
+torch.manualSeed(opt.seed)
+
+--loading and preparing batches
+require(opt.loader)
+local loader =  _G[opt.loader](opt)
+opt.input_size = loader.data:size(3)
+
+
+--initializing encoder and decoder models
+local encoder = vrae.build_encoder(opt.input_size, opt.hidden_size,
+	opt.latent_size, opt.n_layers, opt.dropout)
+
+local map_z_to_hidden = nn.Sequential()
+	:add(nn.Linear(opt.latent_size, opt.hidden_size))
+	:add(nn.Tanh())
+
+local input = nn.Identity()()
+local mean, log_var = encoder(input):split(2)
+local z = nn.Sampler()({mean, log_var})
+
+local h0 = map_z_to_hidden(z)
+local encoder_sampler = nn.gModule({input}, {h0, mean, log_var})
+
+
+local decoder = vrae.build_decoder(opt.input_size, opt.hidden_size,
+	opt.input_size, opt.n_layers, opt.dropout)
+
+local model = nn.Container()
+	:add(encoder_sampler)
+	:add(decoder)
+
+local params, grad_params = model:getParameters()
+
+local KLD = nn.KLDCriterion()
+
+local criterion = nn.BCECriterion()
+criterion.sizeAverage = false
+
+
+local input_encoder = torch.Tensor(opt.seq_length, opt.batch_size, opt.input_size)
+local input_decoder = torch.Tensor(opt.seq_length+1, opt.batch_size, opt.input_size):zero()
+local target_decoder = torch.Tensor(opt.seq_length+1, opt.batch_size, opt.input_size):zero()
+local init_grad_h = torch.Tensor()
+
+
+local feval = function(new_params)
+
+	if params ~= new_params then
+		params:copy(new_params)
+	end 
+
+	model:zeroGradParameters()
+
+	input_encoder:copy(loader:nextBatch())
+	input_decoder:sub(2, -1):copy(input_encoder)
+	target_decoder:sub(1, -2):copy(input_encoder)
+
+	local init_h, mean, log_var = unpack(encoder_sampler:forward(input_encoder))
+
+	local KLDerr = KLD:forward(mean, log_var)
+	local dKLD_dmu, dKlD_dlog_var = unpack(KLD:backward(mean, log_var))
+
+	decoder.set_init_h(init_h)
+	local recons = decoder:forward(input_decoder)
+	local err = criterion:forward(recons, target_decoder)
+
+	local derr_dr = criterion:backward(recons, target_decoder)
+	local dd_dz = decoder:backward(input_decoder, derr_dr)
+
+	init_grad_h = decoder.copy_init_grad_h(init_grad_h)
+	encoder_sampler:backward(input_encoder, {init_grad_h,  dKLD_dmu, dKlD_dlog_var})
+
+	err = err + KLDerr
+
+	grad_params:clamp(-5, 5)
 	
-	for layer=1, n_layers do 
-
-		nn.FastLSTM.bn = batch_norm
-		if layer == 1 then
-			rm:add(nn.FastLSTM(input_size, hidden_size))
-		elseif layer == n_layers then
-			encoder.last_lstm = nn.FastLSTM(hidden_size, hidden_size)
-			rm:add(encoder.last_lstm)
-		else
-		 	rm:add(nn.FastLSTM(hidden_size, hidden_size))
-		end
-
-		if stabilise then
-			rm:add(nn.NormStabilizer())
-		end
-
-		if dropout then
-			rm:add(nn.Dropout(0.5))
-		end
-
-	end
-
-	encoder:add(nn.Sequencer(rm))
-
-	--adding mean and logvar
-	encoder:add(nn.Select(1, -1))
-	encoder:add(nn.ConcatTable()
-			:add(nn.Linear(hidden_size, latent_size))
-			:add(nn.Linear(hidden_size, latent_size)))
-
-	return encoder
-end 
-
-
-
-
-function vrae.build_decoder(input_size, hidden_size, output_size, n_layers, dropout, batch_norm, stabilise)
-
-	local n_layers = n_layers or 1
-	local batch_norm = batch_norm or false
-	local stabilise = stabilise or false
-	
-	local decoder = nn.Sequential()
-	
-	local rm = nn.Sequential()
-	
-	for layer=1, n_layers do 
-
-		nn.FastLSTM.bn = batch_norm
-		if layer == 1 then
-			decoder.first_lstm = nn.FastLSTM(input_size, hidden_size)
-			rm:add(decoder.first_lstm)
-		else
-			rm:add(nn.FastLSTM(hidden_size, hidden_size))
-		end
-
-		if stabilise then
-			rm:add(nn.NormStabilizer(rm))
-		end
-
-		if dropout then
-			rm:add(nn.Dropout(0.5))
-		end
-
-	end
-
-	rm:add(nn.Linear(hidden_size, output_size))
-	rm:add(nn.Sigmoid(true))
-
-	decoder:add(nn.Sequencer(rm))
-
-	function decoder.set_init_cell(cell_state)
-		decoder.first_lstm.userPrevCell =
-			nn.rnn.recursiveCopy(decoder.first_lstm.userPrevCell, cell_state)
-	end
-
-	function decoder.copy_init_grad_cell(init_grad_cell)
-		init_grad_cell = 
-			nn.rnn.recursiveCopy(init_grad_cell, decoder.first_lstm.userGradPrevCell)
-	end
-
-
-	function decoder.sample(init_cell_state, rho)
-
-		decoder:evaluate()
-		decoder.set_init_cell(init_cell_state)
-
-		local outputs = {}
-		local inputSize = decoder.first_lstm.inputSize
-		local outputs = {torch.Tensor():resize(1,inputSize):zero()}
-
-		for t=1, rho do
-			output = decoder:forward(outputs)[#outputs]
-			table.insert(outputs, output)
-		end
-
-		decoder:training()
-		return torch.cat(outputs, 1)
-	end
-	
-
-	return decoder
+	return err, grad_params
 end
 
 
+local lossPlot = {}
+local gradNormPlot = {}
+for epoch=1, opt.max_epochs do
+	for iter=1, loader:getNumberOfBatches() do
 
-return vrae
+		--training step
+		_, fs = optim[opt.optim_alg](feval, params, opt.optim_opt)
+		print('epoch '..epoch..', batch ' ..iter..'/'..loader:getNumberOfBatches()..': loss = '..fs[1])
 
---[[
-		decoder:evaluate()
-		decoder.set_init_cell(init_cell_state)
+		--evaluation
+		lossPlot[#lossPlot+1] = {iter*epoch, fs[1]}
+		gradNormPlot[#gradNormPlot+1] = {iter*epoch, grad_params:norm()}
 
-		local outputs = {}
-		local inputSize = decoder.first_lstm.inputSize
-		local outputs = {[0] = }
-		local inputs = torch.Tensor():resize(1, 1, inputSize):zero()
-		for t=1, rho do
-			local output = decoder:forward(inputs)
-
-			inputs
-
-			inputs = torch.cat(outputs, 1)
-			outputs[t] = output
-			--outputs:resize(t+1, 1, inputSize):select(1,t):copy(output[t])
+		if iter%5 == 0 then
+			decoder:evaluate()
+			local z = torch.randn(opt.latent_size)
+			local init_h = map_z_to_hidden:forward(z)
+			local sample = decoder.sample(init_h, opt.seq_length)
+			display.image(sample, {win=24, title='Generation from rand sample'})
+			decoder:training()
 		end
-		
-		decoder:training()
-		
-		return torch.cat(outputs, 1)
-]]
+
+		display.plot(lossPlot, {win=23, title='Training Loss'})
+		display.plot(gradNormPlot, {win=25, title='Gradient Norm'})
+	end
+end

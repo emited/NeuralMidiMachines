@@ -57,8 +57,6 @@ local encoder_sampler = nn.gModule({input}, {h0, mean, log_var})
 
 local decoder = vrae.build_decoder(opt.input_size, opt.hidden_size,
 	opt.input_size, opt.n_layers, opt.dropout, opt.batch_norm, opt.stabilise)
-local decoder = vrae.build_decoder(opt.input_size, opt.hidden_size, 
-	opt.input_size, opt.n_layers)
 
 local model = nn.Container()
 	:add(encoder_sampler)
@@ -101,7 +99,7 @@ local feval = function(new_params)
 
 	local derr_dr = criterion:backward(recons, target_decoder)
 	local dd_dz = decoder:backward(input_decoder, derr_dr)
-	decoder.copy_init_grad_cell(init_grad_cell)
+	init_grad_cell = decoder.copy_init_grad_cell(init_grad_cell)
 	encoder_sampler:backward(input_encoder, {init_grad_cell,  dKLD_dmu, dKlD_dlog_var})
 
 	err = err + KLDerr
