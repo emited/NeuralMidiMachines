@@ -10,11 +10,12 @@ function MusicLoader:setData(opt)
 	local seq_length = opt.seq_length or 50
 	local overlap = opt.overlap or 25
 
-	local fns = getFilenames(opt.path)
+	local fns = self:getFilenames(opt.path)
 
 	local seqs = {}
 	for i, fn in ipairs(fns) do
-		 local seq = parseSeqFile(fn)
+		print(fn)
+		 local seq = self:parseSeqFile(fn)
 		 for t = 1, seq.notes:size(1)-seq_length, overlap do
 		 	seqs[#seqs+1] = seq.notes:sub(t, t + seq_length-1)
 		 end
@@ -38,11 +39,12 @@ function MusicLoader:preprocess(data)
 	--reduces the note space, based on histogram
 	-- of notes in transposed dataset, only
 	-- for transposed tracks (C)
-	return data:sub(1,-1, 1,-1, 24, -34)
+	--return data:sub(1,-1, 1,-1, 24, -34)
+	return data 
 end
 
 
-function getFilenames(path)
+function MusicLoader:getFilenames(path)
 	local curr_path = paths.cwd()..'/'..path
 	local fns = {}
 	for fn in paths.files(curr_path) do
@@ -54,7 +56,7 @@ function getFilenames(path)
 end
 
 
-function parseSeqFile(fn)
+function MusicLoader:parseSeqFile(fn)
 
 	--parse seq file
 	local file = io.open(fn)

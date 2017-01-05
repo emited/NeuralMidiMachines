@@ -46,18 +46,20 @@ def parseMidiFile(fn, keep_rythm=False, transpose_to=None):
         return seq.items()
     
     else:
+        
         seq = []
+        last_offset = midi_data.flat.notes[0].offset
         for n in midi_data.flat.notes:
+            offset = '%.5f'%(float(n.offset) - float(last_offset))
+            last_offset = n.offset
             if isinstance(n, note.Note):
-                seq.append((n.offset, {n.pitch.midi}))
+                seq.append((offset, {n.pitch.midi}))
             elif isinstance(n, chord.Chord):
                 for chord_note in n:
-                    seq.append((chord_note.offset+n.offset, {chord_note.pitch.midi}))
+                    seq.append((offset, {chord_note.pitch.midi}))
 
 
         return seq
-
-
 
 
 def writeMidiFile(fn, seq):
@@ -133,7 +135,7 @@ def main():
     print 'Converting midi files to seq files....'
 
     error_count = 0
-    for i, midi_fn in enumerate(midi_fns[456:]):
+    for i, midi_fn in enumerate(midi_fns):
         
         try:
             print 'Preprocessing file '+str(i+1)+' of '+str(len(midi_fns))\
