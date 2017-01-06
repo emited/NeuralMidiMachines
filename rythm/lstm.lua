@@ -1,15 +1,35 @@
 
 require 'nn'
 require 'rnn'
+require 'dpnn'
 
 local lstm = {}
 
-function lstm.build(input_size, hidden_size, note_size, offset_size, n_layers, dropout, batch_norm, stabilise)
+function lstm.build(note_size, offset_size, hidden_size, n_layers, dropout, batch_norm, stabilise)
 
 	local n_layers = n_layers or 1
 	local batch_norm = batch_norm or false
 	local stabilise = stabilise or false
 	local dropout = dropout or false
+
+
+	local note2h = nn.Sequential()
+		:add(nn.OneHot(note_size))
+		:add(nn.Linear(note_size, hidden_size))
+		:add(nn.Tanh())
+
+	local offset2h = nn.Sequential()
+		:add(nn.OneHot(offset_size))
+		:add(nn.Linear(offset_size, hidden_size))
+		:add(nn.Tanh())
+
+	local model = nn.Sequential()
+
+	model:add(nn.ParallelTable()
+		:add(nn.Sequencer(note2h))
+		:add(nn.Sequencer(offset2h)))
+
+	model:add(nn.CAddTable())
 
 	local rm = nn.Sequential()
 
@@ -17,11 +37,7 @@ function lstm.build(input_size, hidden_size, note_size, offset_size, n_layers, d
 
 		--adding lstm layer
 		nn.FastLSTM.bn = batch_norm
-		if layer == 1 then
-		 rm:add(nn.FastLSTM(input_size, hidden_size))
-		else
-		 rm:add(nn.FastLSTM(hidden_size, hidden_size))
-		end
+		rm:add(nn.FastLSTM(hidden_size, hidden_size))
 
 		--adding stabilising regularization
 		if stabilise then
@@ -35,6 +51,8 @@ function lstm.build(input_size, hidden_size, note_size, offset_size, n_layers, d
 
 	end
 
+	model:add(nn.Sequential(rm))
+
 	local notes = nn.Sequential()
 		:add(nn.Linear(hidden_size, note_size))
 		:add(nn.SoftMax())
@@ -47,9 +65,8 @@ function lstm.build(input_size, hidden_size, note_size, offset_size, n_layers, d
 		:add(nn.Sequencer(notes))
 		:add(nn.Sequencer(offsets))
 
-	local model = nn.Sequential()
-		:add(nn.Sequencer(rm))
-		:add(notes_offsets)
+	model:add(nn.Sequential()
+		:add(notes_offsets))
 
 	return model
 

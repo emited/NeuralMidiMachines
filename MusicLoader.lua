@@ -14,7 +14,6 @@ function MusicLoader:setData(opt)
 
 	local seqs = {}
 	for i, fn in ipairs(fns) do
-		print(fn)
 		 local seq = self:parseSeqFile(fn)
 		 for t = 1, seq.notes:size(1)-seq_length, overlap do
 		 	seqs[#seqs+1] = seq.notes:sub(t, t + seq_length-1)
