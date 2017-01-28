@@ -14,7 +14,7 @@
 
  * **VRNN** (Variational Recurrent Neural Networks), paper [here](https://arxiv.org/abs/1506.02216).
 
-# For latest models using data representation 2 (note pitch + time since last note), go to rythm folder...
+### For latest models using data representation 2 (note pitch + time since last note), go to rythm folder...
 
 ## Other:
  
