@@ -73,12 +73,12 @@ local feval = function(new_params)
 	local recons, mean, log_var = unpack(model:forward(input))
 	
 	local KLDerr = KLD:forward(mean, log_var)
-	local dKLD_dmu, dKlD_dlog_var = unpack(KLD:backward(mean, log_var))
+	local dKLD_dmu, dKLD_dlog_var = unpack(KLD:backward(mean, log_var))
 
 	local err = criterion:forward(recons, input)
 	local derr_dr = criterion:backward(recons, input)
 
-	model:backward(input, {derr_dr, dKLD_dmu, dKlD_dlog_var})
+	model:backward(input, {derr_dr, dKLD_dmu, dKLD_dlog_var})
 	
 	err = err + KLDerr
 

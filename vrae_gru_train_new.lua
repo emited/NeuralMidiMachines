@@ -7,7 +7,9 @@ local display = require 'display'
 require 'Sampler.lua'
 require 'KLDCriterion'
 require 'GaussianCriterion'
-local vrae = require 'vrae_gru'
+require 'NoteLoader'
+local utils = require 'utils'
+local vrae = require 'vrae_gru_new'
 
 
 local opt = {
@@ -16,8 +18,7 @@ local opt = {
 	n_layers = 1,
 	dropout = false,
 	
-	loader = 'MusicLoader',
-	path = 'data/seqs_transposed',
+	path = 'rythm/data/seqs_rythm',
 	batch_size = 1,
 	seq_length = 15,
 	overlap = 15,
@@ -32,10 +33,9 @@ local opt = {
 --torch.manualSeed(opt.seed)
 
 --loading and preparing batches
-require(opt.loader)
-local loader =  _G[opt.loader](opt)
-opt.input_size = loader.data:size(3)
-
+local loader = NoteLoader(opt)
+opt.input_size = 128
+print('okokok')
 
 --initializing encoder and decoder models
 local encoder = vrae.build_encoder(opt.input_size, opt.hidden_size,
@@ -64,15 +64,10 @@ local params, grad_params = model:getParameters()
 
 local KLD = nn.KLDCriterion()
 
-local criterion = nn.BCECriterion()
-criterion.sizeAverage = false
+local criterion = nn.SequencerCriterion(nn.CrossEntropyCriterion())
 
 
-local input_encoder = torch.Tensor(opt.seq_length, opt.batch_size, opt.input_size)
-local input_decoder = torch.Tensor(opt.seq_length+1, opt.batch_size, opt.input_size):zero()
-local target_decoder = torch.Tensor(opt.seq_length+1, opt.batch_size, opt.input_size):zero()
 local init_grad_h = torch.Tensor()
-
 
 local feval = function(new_params)
 
@@ -82,10 +77,8 @@ local feval = function(new_params)
 
 	model:zeroGradParameters()
 
-	input_encoder:copy(loader:nextBatch())
-	input_decoder:sub(2, -1):copy(input_encoder)
-	target_decoder:sub(1, -2):copy(input_encoder)
-
+	local input_encoder = loader:nextBatch():clone()
+	print(input_encoder:size())
 	local init_h, mean, log_var = unpack(encoder_sampler:forward(input_encoder))
 
 	local KLDerr = KLD:forward(mean, log_var)

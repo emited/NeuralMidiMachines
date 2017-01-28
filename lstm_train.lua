@@ -8,17 +8,17 @@ local display = require 'display'
 
 
 local opt = {
-	hidden_size = 100,
+	hidden_size = 300,
 	dropout = false,
-	n_layers = 3,
-	stabilise = false,
+	n_layers = 2,
+	stabilise = true,
 	batch_norm = true,
 	
 	loader = 'MusicLoader',
 	path = 'data/seqs_transposed',
 	batch_size = 128,
 	seq_length = 25,
-	overlap = 5,
+	overlap = 4,
 	sample_batch = true,
 
 	max_epochs = 100,
@@ -98,7 +98,7 @@ for epoch=1, opt.max_epochs do
 			model:training()
 			local outputs = torch.cat(outputs, 1)
 			local amaxs = torch.cat(amaxs, 1)
-			torch.save('samples/sample_'..epoch*loader:getNumberOfBatches()+iter..'.t7', outputs)
+			torch.save('samples/sample_'..(epoch-1)*loader:getNumberOfBatches()+iter..'.t7', amaxs)
 			print('saving to '..'samples/sample_'..(epoch-1)*loader:getNumberOfBatches()+iter..'.t7')
 			display.image(outputs, {win=27, title='Generation: Outputs'})
 			display.image(amaxs, {win=30, title='Generation: Argmax of Outputs'})

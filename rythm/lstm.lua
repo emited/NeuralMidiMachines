@@ -14,20 +14,18 @@ function lstm.build(note_size, offset_size, hidden_size, n_layers, dropout, batc
 
 
 	local note2h = nn.Sequential()
-		:add(nn.OneHot(note_size))
-		:add(nn.Linear(note_size, hidden_size))
-		:add(nn.Tanh())
+		:add(nn.LookupTable(note_size+1, hidden_size))
 
 	local offset2h = nn.Sequential()
-		:add(nn.OneHot(offset_size))
-		:add(nn.Linear(offset_size, hidden_size))
-		:add(nn.Tanh())
+		:add(nn.LookupTable(offset_size+1, hidden_size))
 
 	local model = nn.Sequential()
 
-	model:add(nn.ParallelTable()
-		:add(nn.Sequencer(note2h))
-		:add(nn.Sequencer(offset2h)))
+	model:add(
+		nn.ParallelTable()
+			:add(nn.Sequencer(note2h))
+			:add(nn.Sequencer(offset2h))
+	)
 
 	model:add(nn.CAddTable())
 
@@ -51,7 +49,7 @@ function lstm.build(note_size, offset_size, hidden_size, n_layers, dropout, batc
 
 	end
 
-	model:add(nn.Sequential(rm))
+	model:add(nn.Sequencer(rm))
 
 	local notes = nn.Sequential()
 		:add(nn.Linear(hidden_size, note_size))
@@ -68,7 +66,7 @@ function lstm.build(note_size, offset_size, hidden_size, n_layers, dropout, batc
 	model:add(nn.Sequential()
 		:add(notes_offsets))
 
-	return model
+	return model:remember('both')
 
 end 
 

@@ -14,6 +14,7 @@ function MusicLoader:setData(opt)
 
 	local seqs = {}
 	for i, fn in ipairs(fns) do
+			if i == 2 then break end
 		 local seq = self:parseSeqFile(fn)
 		 for t = 1, seq.notes:size(1)-seq_length, overlap do
 		 	seqs[#seqs+1] = seq.notes:sub(t, t + seq_length-1)
@@ -39,7 +40,7 @@ function MusicLoader:preprocess(data)
 	-- of notes in transposed dataset, only
 	-- for transposed tracks (C)
 	--return data:sub(1,-1, 1,-1, 24, -34)
-	return data 
+	return data
 end
 
 

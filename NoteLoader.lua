@@ -1,10 +1,10 @@
 
 require 'paths'
 
-local RythmLoader = torch.class('RythmLoader')
+local NoteLoader = torch.class('NoteLoader')
 
 
-function RythmLoader:__init(opt)
+function NoteLoader:__init(opt)
 	
 	self.path = opt.path
 	self.sample = opt.sample or false
@@ -46,7 +46,7 @@ function RythmLoader:__init(opt)
 end
 
 
-function RythmLoader:nextBatch()
+function NoteLoader:nextBatch()
 	
 	local _nidx_
 	if self.sample then
@@ -65,16 +65,16 @@ function RythmLoader:nextBatch()
 	self.bnotes.target:copy(all_notes)
 	self.boffsets.target:copy(all_offsets)
 	
-	return self.bnotes, self.boffsets
+	return self.bnotes.input --, self.boffsets
 end
 
 
-function RythmLoader:getNumberOfBatches()
+function NoteLoader:getNumberOfBatches()
 	return self.n_batches
 end
 
 
-function RythmLoader:setData(opt)
+function NoteLoader:setData(opt)
 
 	local fns = self:getFilenames(self.path)
 
@@ -99,7 +99,7 @@ function RythmLoader:setData(opt)
 end
 
 
-function RythmLoader:getFilenames(path)
+function NoteLoader:getFilenames(path)
 	local curr_path = paths.cwd()..'/'..path
 	local fns = {}
 	for fn in paths.files(curr_path) do
@@ -111,7 +111,7 @@ function RythmLoader:getFilenames(path)
 end
 
 
-function RythmLoader:parseSeqFile(fn)
+function NoteLoader:parseSeqFile(fn)
 
 	--parse seq file
 	local file = io.open(fn)
